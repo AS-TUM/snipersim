@@ -9,4 +9,4 @@ import sim_thread as thread
 import sim.util
 
 import os, sqlite3
-stats.db = sqlite3.connect(os.path.join(config.output_dir, 'sim.stats.sqlite3'))
+stats.db = sqlite3.connect(os.path.join(config.output_dir, 'sim.stats.sqlite3'), check_same_thread=False) #check same thread option necessary else python 3.. causes error..

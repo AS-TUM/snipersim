@@ -4,8 +4,11 @@ import sys, os, time, getopt, tempfile, subprocess, threading, platform, pprint,
 sys.path.append(os.path.join(os.path.dirname(__file__), 'tools'))
 import sniper_lib, sniper_config, gen_simout, debugpin, env_setup, run_sniper
 
-HOME = env_setup.sim_root()
-
+HOME              = env_setup.sim_root()
+THERMSNIPER_PATH  = os.getenv('THERMSNIPER_ROOT')  
+SNIPER_CFG_PATH   = os.path.join(THERMSNIPER_PATH, "config", "sniper")
+HOTSPOT_CFG_PATH  = os.path.join(THERMSNIPER_PATH, "config", "hotspot")
+TS_SCRIPTS_PATH   = os.path.join(THERMSNIPER_PATH, "scripts") 
 
 def usage():
   print('Run program under the Sniper simulator')
@@ -122,17 +125,15 @@ def findfile(filename, extension, paths, subpaths = ('.')):
   return False
 
 def findconfig(filename, extension = '.cfg'):
-  global curdir
-  return findfile(filename, extension, (curdir, os.path.join(HOME, 'config')))
+  return findfile(filename, extension, [SNIPER_CFG_PATH], (filename, '.'))
 
 def findtrace(trace, suffix = '.sift'):
   global curdir
-  dirnames = (curdir, os.getenv('BENCHMARKS_TRACES', '.'), os.getenv('BENCHMARKS_ROOT', '.'), os.getenv('BENCHMARKS_ROOT_ORIG', '.'))
+  dirnames = (curdir, os.getenv('BENCHMARKS_TRACES', '.'), os.getenv('BENCHMARKS_ROOT', '.'),  os.getenv('BENCHMARKS_ROOT', '.'))
   return findfile(trace, suffix, dirnames, ('.', 'traces'))
 
 def findscript(script):
-  global curdir
-  return findfile(script, '.py', (curdir, os.path.join(HOME, 'scripts')))
+  return findfile(script, '.py', (TS_SCRIPTS_PATH, os.path.join(HOME, 'scripts')))
 
 
 def add_config_file(filename, extension='.cfg'):
@@ -732,7 +733,8 @@ if pinballs and not pinball_sift:
     sys.exit(1)
   cmdline = [nullapp_path]
 
-optcmd += ' -c %(sim_root)s/config/base.cfg --general/total_cores=%(ncores)u --general/output_dir=%(outputdir)s %(sniperoptions)s' % locals()
+base_cfg_path = findconfig("base")
+optcmd += ' -c %(base_cfg_path)s --general/total_cores=%(ncores)u --general/output_dir=%(outputdir)s %(sniperoptions)s' % locals()
 if standalone:
   if use_gdb:
     fh, fn = tempfile.mkstemp()
@@ -937,7 +939,7 @@ elif os.path.exists(os.path.join(outputdir, 'sim.cfg')):
     print('[SNIPER] Generating ASO visualization in viz/levels/functionbased/')
     os.system('%(sim_root)s/tools/viz/functionbased.py -d %(outputdir)s -o %(outputdir)s/viz >/dev/null' % locals())
 
-  gen_simout.generate_simout(resultsdir = outputdir, output = open(os.path.join(outputdir, 'sim.out'), 'w'), silent = True)
+  gen_simout.generate_simout(resultsdir = outputdir, output = open(os.path.join(outputdir, 'sim.out'), 'w'), silent = False)
 
 
 stats = dict(
@@ -962,3 +964,4 @@ if os.path.exists('pin.log') and os.path.realpath(os.getcwd()) != os.path.realpa
   os.system('cp pin.log %s' % outputdir)
 
 sys.exit(rc)
+external
