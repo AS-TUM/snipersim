@@ -11,11 +11,6 @@ PTRACE_FILE_PATH = os.path.join(os.getenv('THERMSNIPER_OUTPUTDIR'), os.getenv('T
 
 THERMSNIPER_OUTPUTDIR = os.getenv('THERMSNIPER_OUTPUTDIR')
 
-
-# Find floorplan instance names of dissipating layers
-with open(os.getenv("THERMSNIPER_DIPTR_NAMES_FILEPATH"), 'r') as file:
-  FLOORPLAN_NAMES = [line.strip() for line in file]
-
 class TempSysPath:
     def __init__(self, path):
         self.path = os.path.abspath(path)
@@ -234,6 +229,7 @@ def main(jobid, resultsdir, outputfile, powertype = 'dynamic', config = None, no
   time0_end = results['results']['global.time_end']
   seconds = (time0_end - time0_begin)/1e15
   power_stack(power_dat, results['config'], powertype)
+  print(f"[mcpat.py] Ran power analysis (power_type: {powertype}) and wrote power trace file")
 
  # results = power_stack(power_dat, results['config'], powertype)
   # # Plot stack
@@ -367,7 +363,7 @@ def power_stack(power_dat, cfg, powertype = 'total', nocollapse = False):
   # data['core-other'] = getpower(power_dat['Processor']) - (sum(data.values()) - data['dram'])
   
   with TempSysPath(THERMSNIPER_OUTPUTDIR):
-    from floorplan_mcpat import FLOORPLAN_INFORMATION
+    from thermsniper_to_mcpat import FLOORPLAN_INFORMATION, TxRx_POWER_DAT
   
   ptrace_line = ""
   ptrace_headings = ""
@@ -417,18 +413,26 @@ def power_stack(power_dat, cfg, powertype = 'total', nocollapse = False):
           if i != count - 1:
               raise RuntimeError(f"Number of {flp_element} instances of mcpat data not congruent to floorplan information")
       
-      # Case B: McPat delivers no floorplan element pwr data -> set pwr to 0
+      # Case B: McPat delivers no floorplan element pwr data -> set pwr to 0 (if not TxRx of ONoC)
       else:
+          if flp_element == "TxRx":
+            if powertype == "total":
+              val = TxRx_POWER_DAT["ONoC_Pbase_static"] + TxRx_POWER_DAT["ONoC_Pbase_dynamic"] 
+            elif powertype == "dynamic":
+              val = TxRx_POWER_DAT["ONoC_Pbase_dynamic"] 
+            else: 
+              raise RuntimeError("Unexpected powertype in mcpat.py")
+            
+          ptrace_val = f"{val}\t" if flp_element == "TxRx" else f"0\t"    #TODO: check if less fractals should be used
+          
           for i in range(count):
               ptrace_headings += f"{flp_element}_{i}\t"
-              ptrace_line     += f"0\t"
+              ptrace_line     += ptrace_val
   
   # === Final Write ===
   with open(PTRACE_FILE_PATH, 'w') as f:
       f.write(ptrace_headings + "\n")
       f.write(ptrace_line + "\n")
-
-  print("[mcpat.py] Ran power analysis and wrote power trace file")
   
   # return buildstack.merge_items({ 0: data }, all_items, nocollapse = nocollapse)
 
@@ -1405,5 +1409,6 @@ if __name__ == '__main__':
         sys.stderr.write('--partial=<from>:<to>\n')
         usage()
       partial = a.split(':')
+
 
   main(jobid = jobid, resultsdir = resultsdir, powertype = powertype, config = config, outputfile = outputfile, no_graph = no_graph, print_stack = not no_text, partial = partial)
