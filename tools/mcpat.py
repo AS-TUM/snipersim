@@ -229,67 +229,7 @@ def main(jobid, resultsdir, outputfile, powertype = 'dynamic', config = None, no
   time0_end = results['results']['global.time_end']
   seconds = (time0_end - time0_begin)/1e15
   power_stack(power_dat, results['config'], powertype)
-  print(f"[mcpat.py] Ran power analysis (power_type: {powertype}) and wrote power trace file")
-
- # results = power_stack(power_dat, results['config'], powertype)
-  # # Plot stack
-  # plot_labels = []
-  # plot_data = {}
-  # if powertype == 'area':
-  #   if print_stack:
-  #     print('                         Area    Area %')
-  #   for core, (res, total, other, scale) in results.items():
-  #     plot_data[core] = {}
-  #     total_core = 0.; total_cache = 0.
-  #     for name, value in res:
-  #       if print_stack:
-  #         print('  %-12s    %6.2f mm^2   %6.2f%%' % (name, float(value), 100 * float(value) / total))
-  #       if name.startswith('core'):
-  #         total_core += float(value)
-  #       elif name in ('icache', 'dcache', 'l2', 'l3', 'nuca'):
-  #         total_cache += float(value)
-  #       plot_labels.append(name)
-  #       plot_data[core][name] = float(value)
-  #     if print_stack:
-  #       print()
-  #       print('  %-12s    %6.2f mm^2   %6.2f%%' % ('core', float(total_core), 100 * float(total_core) / total))
-  #       print('  %-12s    %6.2f mm^2   %6.2f%%' % ('cache', float(total_cache), 100 * float(total_cache) / total))
-  #       print('  %-12s    %6.2f mm^2   %6.2f%%' % ('total', float(total), 100 * float(total) / total))
-  # else:
-  #   if print_stack:
-  #     print('                     Power     Energy    Energy %')
-  #   for core, (res, total, other, scale) in results.items():
-  #     plot_data[core] = {}
-  #     total_core = 0.; total_cache = 0.
-  #     for name, value in res:
-  #       if print_stack:
-  #         energy, energy_scale = sniper_lib.scale_sci(float(value) * seconds)
-  #         print('  %-12s    %6.2f W   %6.2f %sJ    %6.2f%%' % (name, float(value), energy, energy_scale, 100 * float(value) / total))
-  #       if name.startswith('core'):
-  #         total_core += float(value)
-  #       elif name in ('icache', 'dcache', 'l2', 'l3', 'nuca'):
-  #         total_cache += float(value)
-  #       plot_labels.append(name)
-  #       plot_data[core][name] = float(value) * seconds
-  #     if print_stack:
-  #       print()
-  #       energy, energy_scale = sniper_lib.scale_sci(float(total_core) * seconds)
-  #       print('  %-12s    %6.2f W   %6.2f %sJ    %6.2f%%' % ('core', float(total_core), energy, energy_scale, 100 * float(total_core) / total))
-  #       energy, energy_scale = sniper_lib.scale_sci(float(total_cache) * seconds)
-  #       print('  %-12s    %6.2f W   %6.2f %sJ    %6.2f%%' % ('cache', float(total_cache), energy, energy_scale, 100 * float(total_cache) / total))
-  #       energy, energy_scale = sniper_lib.scale_sci(float(total) * seconds)
-  #       print('  %-12s    %6.2f W   %6.2f %sJ    %6.2f%%' % ('total', float(total), energy, energy_scale, 100 * float(total) / total))
-
-  # if not no_graph:
-  #   # Use Gnuplot to make a stacked bargraphs of these cpi-stacks
-  #   if 'other' in plot_labels:
-  #     all_names.append('other')
-  #   all_names_with_colors = list(zip(all_names, list(range(1,len(all_names)+1))))
-  #   plot_labels_with_color = [n for n in all_names_with_colors if n[0] in plot_labels]
-  #   gnuplot.make_stacked_bargraph(outputfile, plot_labels_with_color, plot_data, 'Energy (J)')
-
-  # if return_data:
-  #   return {'labels': plot_labels, 'power_data': plot_data, 'ncores': ncores, 'time_s': seconds}
+  print(f"[McPAT] Ran power analysis (power_type: {powertype}) and wrote power trace file")
 
 
 def scale_power(suffix, power, size_nm):
@@ -330,37 +270,6 @@ def power_stack(power_dat, cfg, powertype = 'total', nocollapse = False):
       return getcomponent('Area') + getcomponent('Area Overhead')
     else:
       raise ValueError('Unknown powertype %s' % powertype)
-  # data = {
-  #   'l2':               sum([ getpower(cache) for cache in power_dat.get('L2', []) ])  # shared L2
-  #                       + sum([ getpower(core, 'L2') for core in power_dat['Core'] ]), # private L2
-  #   'l3':               sum([ getpower(cache) for cache in power_dat.get('L3', []) ]),
-  #   'nuca':             sum([ getpower(cache) for cache in power_dat.get('NUCA', []) ]),
-  #   'noc':              getpower(power_dat['Processor'], 'Total NoCs'),
-  #   'dram':             getpower(power_dat['DRAM']),
-  #   'core':             sum([ getpower(core, 'Execution Unit/Instruction Scheduler')
-  #                             + getpower(core, 'Execution Unit/Register Files')
-  #                             + getpower(core, 'Execution Unit/Results Broadcast Bus')
-  #                             + getpower(core, 'Renaming Unit')
-  #                             for core in power_dat['Core']
-  #                           ]),
-  #   'core-ifetch':      sum([ getpower(core, 'Instruction Fetch Unit/Branch Predictor')
-  #                             + getpower(core, 'Instruction Fetch Unit/Branch Target Buffer')
-  #                             + getpower(core, 'Instruction Fetch Unit/Instruction Buffer')
-  #                             + getpower(core, 'Instruction Fetch Unit/Instruction Decoder')
-  #                             for core in power_dat['Core']
-  #                           ]),
-  #   'icache':           sum([ getpower(core, 'Instruction Fetch Unit/Instruction Cache') for core in power_dat['Core'] ]),
-  #   'dcache':           sum([ getpower(core, 'Load Store Unit/Data Cache') for core in power_dat['Core'] ]),
-  #   'core-alu-complex': sum([ getpower(core, 'Execution Unit/Complex ALUs') for core in power_dat['Core'] ]),
-  #   'core-alu-fp':      sum([ getpower(core, 'Execution Unit/Floating Point Units') for core in power_dat['Core'] ]),
-  #   'core-alu-int':     sum([ getpower(core, 'Execution Unit/Integer ALUs') for core in power_dat['Core'] ]),
-  #   'core-mem':         sum([ getpower(core, 'Load Store Unit/LoadQ')
-  #                             + getpower(core, 'Load Store Unit/StoreQ')
-  #                             + getpower(core, 'Memory Management Unit')
-  #                             for core in power_dat['Core']
-  #                           ]),
-  # }
-  # data['core-other'] = getpower(power_dat['Processor']) - (sum(data.values()) - data['dram'])
   
   with TempSysPath(THERMSNIPER_OUTPUTDIR):
     from thermsniper_to_mcpat import FLOORPLAN_INFORMATION, TxRx_POWER_DAT
